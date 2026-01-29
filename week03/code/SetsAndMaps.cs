@@ -86,32 +86,37 @@ public static class SetsAndMaps
     /// </summary>
     public static bool IsAnagram(string word1, string word2)
     {
-        var charCount1 = new Dictionary<char, int>();
-        var charCount2 = new Dictionary<char, int>();
-        foreach (var c in word1.ToLower())
+        var charCounts = new Dictionary<char, int>();
+    
+        foreach (char c in word1.ToLower())
         {
-            if (charCount1.ContainsKey(c))
-            {
-                charCount1[c]++;
-            }
+            if (c == ' ') continue;
+    
+            if (charCounts.ContainsKey(c))
+                charCounts[c]++;
             else
-            {
-                charCount1[c] = 1;
-            }
+                charCounts[c] = 1;
         }
-        foreach (var c in word2.ToLower())
+    
+        foreach (char c in word2.ToLower())
         {
-            if (charCount2.ContainsKey(c))
-            {
-                charCount2[c]++;
-            }
-            else
-            {
-                charCount2[c] = 1;
-            }
+            if (c == ' ') continue;
+    
+            if (!charCounts.ContainsKey(c))
+                return false;
+    
+            charCounts[c]--;
         }
-        return charCount1.Count == charCount2.Count && !charCount1.Except(charCount2).Any();
+    
+        foreach (var count in charCounts.Values)
+        {
+            if (count != 0)
+                return false;
+        }
+    
+        return true;
     }
+    
 
     /// <summary>
     /// This function will read JSON (Javascript Object Notation) data from the 
@@ -128,28 +133,32 @@ public static class SetsAndMaps
     /// 
     /// </summary>
     public static string[] EarthquakeDailySummary()
+{
+    const string uri = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
+
+    using var client = new HttpClient();
+    using var response = client.GetAsync(uri).Result;
+    using var jsonStream = response.Content.ReadAsStream();
+    using var reader = new StreamReader(jsonStream);
+    var json = reader.ReadToEnd();
+    var options = new JsonSerializerOptions
     {
-        const string uri = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
-        using var client = new HttpClient();
-        using var getRequestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
-        using var jsonStream = client.Send(getRequestMessage).Content.ReadAsStream();
-        using var reader = new StreamReader(jsonStream);
-        var json = reader.ReadToEnd();
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        PropertyNameCaseInsensitive = true
+    };
 
-        var featureCollection = JsonSerializer.Deserialize<FeatureCollection>(json, options);
-
-        var result = new List<string>();
-        foreach (var feature in featureCollection.Features)
+    var featureCollection = JsonSerializer.Deserialize<FeatureCollection>(json, options);
+    var result = new List<string>();
+    foreach (var feature in featureCollection.Features)
+    {
+        if (feature.Properties.Magnitude.HasValue)
         {
-            result.Add($"{feature.Properties.Place} - {feature.Properties.Magnitude}");
+            result.Add(
+                $"{feature.Properties.Place} - Mag {feature.Properties.Magnitude.Value}"
+            );
         }
-
-        // TODO Problem 5:
-        // 1. Add code in FeatureCollection.cs to describe the JSON using classes and properties 
-        // on those classes so that the call to Deserialize above works properly.
-        // 2. Add code below to create a string out each place a earthquake has happened today and its magitude.
-        // 3. Return an array of these string descriptions.
-        return result.ToArray();
     }
+
+    return result.ToArray();
+}
+
 }
